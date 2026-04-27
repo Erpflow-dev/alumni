@@ -129,7 +129,7 @@ Done. Site reloads at `/alumni` (or your configured subdomain).
 
 ## Documentation
 
-- [`SPEC.md`](./SPEC.md) — canonical reference: doctypes, fields, workflows, permissions, API (spec v3, ~103 DocTypes)
+- [`SPEC.md`](./SPEC.md) — canonical reference: doctypes, fields, workflows, permissions, API (spec v3, ~105 DocTypes)
 - [`INTEGRATIONS.md`](./INTEGRATIONS.md) — adapter contract for connecting to other apps (12 adapters: education, receivables, events, storage, mail, analytics, live_class, certificates, communication, messaging, verification, ai)
 - [`THEMES.md`](./THEMES.md) — how themes work, how to add a custom one (LTR + RTL, 4 default themes incl. Aurora dark)
 - [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) — frontend design system: components, motion, accessibility, RTL, performance budgets
@@ -152,3 +152,5 @@ For migrations from custom systems, see the same doc as a template.
 ## License
 
 AGPL-3.0 (matches Frappe and Buzz).
+
+**Network-use note (AGPL §13).** AGPL-3.0 obligates anyone who runs a modified version of this app as a network service to make the corresponding source available to the users it serves. The forthcoming v2 companion app **`alumni_saas`** (per ADR-035) is the multi-tenant SaaS surface and inherits the same obligation — institutions deploying it must keep their source available to the alumni they serve, regardless of whether those alumni log in. This is enforceable per AGPL §13 and is why we chose AGPL over MIT / Apache for an alumni-network product (we want institutional deployments to remain in the open ecosystem). An operator's compliance checklist will live at `docs/ops/agpl-saas.md` alongside the v2 plan.

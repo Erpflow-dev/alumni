@@ -22,16 +22,18 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 **Done:** CI green on empty app on Frappe v16.
 
 ### `[ ] T-002 — Adapter Layer skeleton`
-**Outcome:** All 11 adapters exist with public surface + `_real` + `_fallback` stubs (events has only `_real` per ADR-025; verification has only `_fallback` since it is internal-only).
+**Outcome:** All 12 adapters exist with public surface + `_real` + `_fallback` stubs (events has only `_real` per ADR-025; verification has only `_fallback` since it is internal-only; AI ships with both but `_real` is a thin shim that T-104 fleshes out with provider drivers).
 **Steps:**
-- Create `alumni/integrations/__init__.py` with selector
-- Create `<area>.py` and implementations for: education, receivables, events, storage, mail, analytics, live_class, certificates, communication, **messaging** (new in v3 per ADR-031), **verification** (new in v3 per ADR-032)
+- Create `alumni/integrations/__init__.py` with selector per INTEGRATIONS.md §0 — including the AI special-case branch and the `frappe.DoesNotExistError` defensive default for the pre-Settings install / migrate path
+- Create `<area>.py` and implementations for: education, receivables, events, storage, mail, analytics, live_class, certificates, communication, **messaging** (new in v3 per ADR-031), **verification** (new in v3 per ADR-032), **ai** (new in v3 per ADR-054 lesson #10 — scaffold only; T-104 lands the real driver implementations)
 - All `_real` methods raise `NotImplementedError("requires <app>")`
 - All `_fallback` methods return safe defaults
-- `events_real.py` is the only events impl — required dep
+- `events_real.py` is the only events impl — required dep; **no `events_fallback.py`**
 - `messaging_fallback.py` uses internal Message Thread / Message DocTypes; `messaging_real.py` is reserved for future Raven backend
-- `verification_fallback.py` uses internal Alumni Verification Document table
-**Done:** `pytest tests/integrations/` runs (most tests skipped/xfailed).
+- `verification_fallback.py` uses internal Alumni Verification Document table; **no `verification_real.py`**
+- `ai_fallback.py` raises `NotImplementedError("AI not enabled")` for `draft`; `ai_real.py` is a stub module with the public function signatures from INTEGRATIONS.md §12 — driver implementations and `ai/contexts.py` allow-lists land in T-104
+- Test that selector survives a missing Alumni Settings (delete the Single, call `_mode_for("storage")`, expect `"fallback"` — not `DoesNotExistError`)
+**Done:** `pytest tests/integrations/` runs (most tests skipped/xfailed); the missing-Settings selector test passes.
 
 ### `[ ] T-003 — CI guard for cross-app imports`
 **Outcome:** PRs that import from outside `integrations/` fail CI. Buzz, ERPNext, Education, Insights, Raven all blocked.
@@ -369,8 +371,8 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 ### `[ ] T-041 — Newsletter with segments`
 **Done:** Send to 2018 batch only → only those addresses targeted.
 
-### `[ ] T-042 — Transactional email templates fixture (28 templates)`
-**Outcome:** v3 expands the template set: original 15 + new for verification (4), elections (5), donations (2), messaging (2). All 28 templates load on `bench migrate`.
+### `[ ] T-042 — Transactional email templates fixture (29 templates)`
+**Outcome:** v3 expands the template set: original 15 + new for verification (5), elections (6), donations (2), messaging (1). All 29 templates load on `bench migrate`. Canonical list lives in SPEC.md §09.
 **Done:** Fixture loads cleanly; render-test asserts each template produces non-empty output with mock context.
 
 ### `[ ] T-043 — Push notification via communication adapter`
@@ -443,15 +445,18 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 - Tests: scheduled visibility windows respected; sort order honored
 **Done:** Admin can add/edit FAQ entries → instantly visible on `/alumni/faq` without dev help.
 
-### `[ ] T-074 — Multilingual translations + RTL pass` *(NEW v3, per ADR-038)*
-**Outcome:** All user-facing strings wrapped in `_("…")`. Translation .csv files for English (source), Arabic, Hindi, Bengali, Spanish, Portuguese, French, Indonesian. RTL layout verified for Arabic.
+### `[ ] T-074 — Multilingual translations + RTL pass + unwrapped-string CI lint` *(NEW v3, per ADR-038)*
+**Outcome:** All user-facing strings wrapped in `_("…")`. Translation .csv files for English (source), Arabic, Hindi, Bengali, Spanish, Portuguese, French, Indonesian. RTL layout verified for Arabic. **CI lint enforces wrapping going forward** so future PRs can't reintroduce raw strings.
 **Steps:**
 - `bench --site test.local generate-pot-file --app alumni`
 - Seed `alumni/translations/ar.csv` etc. with priority strings (top 200) using `_()` keys
 - Add `[dir="rtl"]` selectors in component CSS for layout swaps (margins, icon flips)
 - Vue: hook through `frappe.client.get_translation`
 - E2E test: switch site language to Arabic → public landing renders RTL with no overflow
-**Done:** Arabic visitor sees Arabic UI in RTL layout; other 6 languages have ≥80% coverage.
+- **CI lint** `tests/test_user_facing_strings_wrapped.py` — walks `.py` files in user-facing modules (`alumni/api.py`, `alumni/alumni/doctype/`, `alumni/templates/`, `alumni/www/`), parses each via `ast`, and **flags any string literal** passed as a positional arg to: `frappe.msgprint`, `frappe.throw`, `print`, a `return` of a bare string, or `raise <Exception>(...)` — that isn't wrapped in `_(...)`. Allow-list (don't flag): `frappe.logger().*` calls, exception classes from `frappe.exceptions`, fixture / enum / dict-key string literals, strings inside `# noqa: i18n` comments, docstrings.
+- The lint targets the same surface set the translator scans (`generate-pot-file`), so anything the lint passes is guaranteed translatable.
+- Vue equivalent: ESLint rule `eslint-plugin-vue-i18n` configured with `no-raw-text` to enforce the same on `.vue` templates.
+**Done:** Arabic visitor sees Arabic UI in RTL layout; other 6 languages have ≥80% coverage; planted-violation test (a `frappe.throw("Direct string")` call) makes the lint fail.
 
 ### `[ ] T-046 — Subdomain hostname routing`
 **Outcome:** `alumni.<school>` serves alumni site; main domain serves school site (school-connected mode).
@@ -793,10 +798,10 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 
 > Per ADR-050 (vCards), ADR-051 (per-alumni custom domains), ADR-052 (WhatsApp click-to-chat + Business API), ADR-053 (admin-managed template registry), and ADR-054 (lessons applied from InfyVCardsSaas's 14-version history). This phase is a self-contained subsystem; can ship after Phase 17 once SaaS infrastructure is solid.
 
-### `[ ] T-104 — AI adapter + 4 provider drivers (OpenAI, Anthropic, Bedrock, Custom HTTP)` *(NEW v3, per ADR-054 lesson #10)*
-**Outcome:** `alumni.integrations.ai` with the public surface from INTEGRATIONS.md §12 working with at least three real drivers + one custom HTTP. AI is institution-opt-in; per-alumni token quotas enforced; generation logs written; PII-minimization filters in place.
+### `[ ] T-104 — AI adapter providers + PII allow-lists (scaffold lives in T-002)` *(NEW v3, per ADR-054 lesson #10)*
+**Outcome:** `alumni.integrations.ai` already exists from T-002 (public surface stub + no-op `_fallback`). This ticket lands the **real driver implementations** (OpenAI, Anthropic, Bedrock, Custom HTTP) and the per-purpose **PII context allow-lists** in `alumni/integrations/ai/contexts.py`. AI is institution-opt-in; per-alumni token quotas enforced; generation logs written; PII-minimization filters in place.
 **Steps:**
-- Adapter scaffold: `ai.py` + `ai_real.py` + `ai_fallback.py` + `ai_real/drivers/{openai,anthropic,bedrock,custom_http}.py`
+- Driver implementations under `alumni/integrations/ai_real/drivers/{openai,anthropic,bedrock,custom_http}.py` (scaffold module from T-002 stays; this fills it in)
 - DocType `Alumni AI Generation Log` per SPEC §04
 - Settings fields per SPEC §04 AI section
 - Per-purpose `context` allow-lists in `ai/contexts.py` (one function per purpose returning the safe subset)
@@ -965,7 +970,7 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 | 8 — Network features | T-035, T-036, T-037, **T-098, T-099, T-102** | Q&A, Chapters, Reunions + **Memorial Wall + Hall of Fame + Match Suggestions** |
 | 9 — Mentorship | T-038, T-039 | |
 | 10 — Outcomes | T-040 | |
-| 11 — Comms | T-041, T-042, T-043, T-088, T-089, T-090, **T-091** | Newsletter + 28 templates + push + multi-channel SMS/WhatsApp + broadcast + **Aurora dark theme + design system** |
+| 11 — Comms | T-041, T-042, T-043, T-088, T-089, T-090, **T-091** | Newsletter + 29 templates + push + multi-channel SMS/WhatsApp + broadcast + **Aurora dark theme + design system** |
 | 12 — Public site | T-044, T-045, T-073, T-074, T-046, T-047, T-075, **T-100** | Builder + CMS DocTypes + multilingual + multi-site runbook + **Perks + Member Card** |
 | 13 — Analytics | T-048, T-049, T-076, T-050 | 10 dashboards |
 | 14 — **Committees & Elections (NEW)** | T-077 → T-084 | Full election subsystem |
