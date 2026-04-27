@@ -50,8 +50,11 @@ alumni/integrations/
 ├── certificates.py / certificates_real.py / certificates_fallback.py
 ├── communication.py / communication_real.py / communication_fallback.py  # EXPANDED v3 per ADR-040 — pluggable SMS/WhatsApp channels + broadcast (12 built-in providers + Custom HTTP)
 ├── messaging.py / messaging_real.py / messaging_fallback.py    # NEW v3 — fallback uses internal Message/Thread DocTypes; _real reserved for future Raven backend
-└── verification.py / verification_fallback.py                  # NEW v3 — internal-only, no _real
+├── verification.py / verification_fallback.py                  # NEW v3 — internal-only, no _real
+└── ai.py / ai_real.py / ai_fallback.py                         # NEW v3 — scaffolded in T-002; provider drivers (OpenAI / Anthropic / Bedrock / Custom HTTP) and ai/contexts.py allow-lists land in T-104. Selector reads Alumni Settings.ai_provider, NOT frappe.get_installed_apps() — see INTEGRATIONS.md §0
 ```
+
+> **12 adapters total.** AI is the 12th. Its scaffolding (the public `ai.py` surface and a no-op `ai_fallback.py` that raises `NotImplementedError("AI not enabled")`) lands in T-002 alongside the other 11. The real driver implementations and per-purpose PII allow-lists land in T-104.
 
 ## Hard rules
 

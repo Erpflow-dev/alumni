@@ -55,7 +55,9 @@ The authoritative spec. Code and SPEC must agree; fix the wrong one.
 4. **Past Student stub**: admin enters historical alumni in `Past Student` DocType, then converts in batches.
 
 ### Alumni Profile state machine
-`Draft → Pending (Email Verified) → Pending (Docs Submitted) → Active → Suspended | Deceased`
+`Draft → Pending Email → Pending Docs → Active → Suspended | Deceased`
+
+> Substates are named for what's *still pending*, matching the `Alumni Profile.status` Select values exactly. `Pending Email` = waiting for email verification; `Pending Docs` = email verified, waiting for verification document review.
 
 The two Pending substates exist so admins can see whether a self-registered profile has cleared each gate. School-Connected auto-promoted profiles skip Pending entirely → land at Active (Draft only if `auto_promote_requires_review` is set).
 
@@ -63,7 +65,7 @@ The two Pending substates exist so admins can see whether a self-registered prof
 
 ## §03 DocType inventory
 
-> Counts updated for spec v3 (final revision Apr 2026): 33 → ~103 first-class DocTypes after the full v3 review (channels per ADR-040, domains per ADR-041, completeness per ADR-044, memorial+awards per ADR-045, perks per ADR-046, referrals+speakers per ADR-047, match mute per ADR-048, vCards + WhatsApp Store + AI logs per ADR-050/053/054).
+> Counts updated for spec v3 (final revision Apr 2026): 33 → ~105 first-class DocTypes after the full v3 review (channels per ADR-040, domains per ADR-041, completeness per ADR-044, memorial+awards per ADR-045, perks per ADR-046, referrals+speakers per ADR-047, match mute per ADR-048, vCards + WhatsApp Store + AI logs per ADR-050/053/054).
 
 ### Identity & Profile (4)
 1. Alumni Profile
@@ -117,7 +119,7 @@ The two Pending substates exist so admins can see whether a self-registered prof
 33. Alumni Campaign Comment — **NEW in v3** (engagement on campaigns)
 34. Alumni Donation (supports `is_guest`, `guest_email`, `guest_name` per ADR-034)
 
-### Committees & Elections (12) — **EXPANDED in v3** (was 3)
+### Committees & Elections (13) — **EXPANDED in v3** (was 3)
 35. Alumni Committee Category
 36. Alumni Committee
 37. Alumni Committee Designation — positions like President, Treasurer, Secretary
@@ -193,7 +195,7 @@ The two Pending substates exist so admins can see whether a self-registered prof
 ### Networking (1) — **NEW v3** per ADR-048
 84. Alumni Match Mute (alumni + muted_alumni — privacy-respecting "not interested")
 
-### Digital Business Cards / vCards (15) — **NEW v3** per ADR-050 + ADR-053
+### Digital Business Cards / vCards (17) — **NEW v3** per ADR-050 + ADR-053
 85. Alumni VCard (1:1 with Alumni Profile, optional)
 86. Alumni VCard Template (read-only, populated from `vcard_templates/` folders — admin uploads new ones via the registry per ADR-053; v1 ships 2: "Classic Professional", "Modern Minimal")
 87. Alumni VCard Social Link (child)
@@ -208,15 +210,17 @@ The two Pending substates exist so admins can see whether a self-registered prof
 96. Alumni VCard Inquiry — contact-form submissions (filtered by `Alumni Settings.blocked_email_domains` + keyword regex per ADR-054 lesson #8)
 97. Alumni VCard Appointment — bookable time slots, optionally paid via receivables adapter
 98. Alumni VCard Product — items / services for sale (with tax fields)
-99. Alumni VCard Product Order — purchase records via receivables adapter (with tax breakdown + PDF receipt)
+99. Alumni VCard Product Image (child of Alumni VCard Product) — multiple images per product per InfyVCards v13.0.0
+100. Alumni VCard Product Category — vCard-scoped by default; admin can mark `is_global=1` to share across the institution
+101. Alumni VCard Product Order — purchase records via receivables adapter (with tax breakdown + PDF receipt)
 
 ### WhatsApp Store integration (3) — **NEW v3** per ADR-052 + ADR-053
-100. Alumni WhatsApp Store Template (read-only, populated from `whatsapp_templates/` folders — admin uploads via registry; v1 ships 1: "Standard Storefront")
-101. Alumni VCard WhatsApp Catalog Sync Log (audit trail of catalog pushes to Meta WhatsApp Business)
-102. Alumni VCard Visit (analytics, aggregated daily for privacy; tracks `whatsapp_click_count`, view count, view limit per ADR-054 lesson #7)
+102. Alumni WhatsApp Store Template (read-only, populated from `whatsapp_templates/` folders — admin uploads via registry; v1 ships 1: "Standard Storefront")
+103. Alumni VCard WhatsApp Catalog Sync Log (audit trail of catalog pushes to Meta WhatsApp Business)
+104. Alumni VCard Visit (analytics, aggregated daily for privacy; tracks `whatsapp_click_count`, view count, view limit per ADR-054 lesson #7)
 
 ### AI assistance (1) — **NEW v3** per ADR-054 lesson #10
-103. Alumni AI Generation Log (audit trail: who asked AI to draft what, prompt hash, model, token count)
+105. Alumni AI Generation Log (audit trail: who asked AI to draft what, prompt hash, model, token count)
 
 > One vCard per alumni in v1. Multiple vCards / brands per alumni deferred to v2.
 
@@ -895,6 +899,25 @@ Read-only — populated from disk. Four themes ship by default per ADR-043: Heri
 - `is_published` Check default 0
 - `inquiry_button` Check default 1
 
+### Alumni VCard Product Image (child) — NEW v3
+- `image` Attach Image req
+- `caption` Small Text
+- `is_primary` Check (controller enforces exactly one primary per parent — promotes the first if none flagged)
+- `sort_order` Int
+
+> Stored under the parent vCard's storage quota allowance (per ADR-054 lesson #1). Auto-cropped on upload per ADR-054 lesson #2 (declared aspect from the parent product's display ratio).
+
+### Alumni VCard Product Category — NEW v3
+- `name` autoname `VPC-{####}`
+- `category_name` Data req
+- `vcard` Link → Alumni VCard (null when `is_global = 1`)
+- `is_global` Check default 0 (admin-only flag — when set, the category is shared across every alumni vCard in the institution)
+- `cover_image` Attach Image
+- `sort_order` Int
+- `is_active` Check default 1
+
+> Categories are vCard-scoped by default. Setting `is_global = 1` requires Admin role and makes the category appear in every alumni's product-category picker. Deletion of a global category is rejected if any product currently references it.
+
 ### Alumni VCard Product Order — NEW v3
 - `name` autoname `ORD-{YYYY}-{######}`
 - `vcard` Link → Alumni VCard req
@@ -1031,6 +1054,8 @@ Read-only — populated from disk. Four themes ship by default per ADR-043: Heri
 - `enable_dark_mode_auto` Check default 1 — when active theme has a paired dark variant, follow OS `prefers-color-scheme`
 - `white_label_enabled` Check default 0 (SaaS tenants on higher tiers can hide "Powered by" footer; v1 always allows it for paying tenants)
 - `custom_email_signature_html` Long Text (overrides default Frappe email footer)
+- `alumni_custom_domains_enabled` Check default 0 — per ADR-051 (master toggle; when 0, the per-alumni custom domain feature is hidden everywhere — Settings UI, vCard editor, public alumni page). Institutions opt in.
+- `alumni_custom_domain_eligible_tiers` Table → Alumni Membership Plan — per ADR-051 (which Membership Plan tiers may attach a per-alumni custom domain; empty table = no tiers eligible even when the master toggle is on. Used by T-114 eligibility check, which requires BOTH `alumni_custom_domains_enabled = 1` AND alumni's active Membership tier appearing in this table.)
 
 #### Completeness & onboarding — NEW v3 (per ADR-044)
 - `completeness_rules` JSON (default ships per ADR-044; admin can edit weights to suit institution)
@@ -1291,6 +1316,38 @@ Read-only — populated from disk. Four themes ship by default per ADR-043: Heri
 
 ### Alumni Notice (extended)
 - adds: `category` Link → Alumni Notice Category
+
+---
+
+### Alumni Comment — polymorphic, UUID autoname (schema for §03 #23)
+- `name` autoname `uuid`
+- `parent_doctype` Data req — one of: `Alumni Story`, `Alumni News Article`, `Alumni Notice`, `Alumni Post`, `Alumni Donation Campaign`, `Alumni Candidate` (allow-list enforced in `validate`)
+- `parent_name` Data req
+- `commenter` Link → Alumni Profile req
+- `body` Long Text req (≤2000 chars; rich text sanitized via `bleach` allow-list — same profile as vCard FAQ)
+- `parent_comment` Link → Alumni Comment (1-level threading; null = top-level)
+- `is_published` Check default 1 (Moderator can flip to 0 to hide)
+- `is_flagged` Check default 0
+- `flag_reason` Small Text (set by reporter; never displayed to commenter)
+- `flagged_by` Link → User
+- `commented_on` Datetime auto
+- `edited_on` Datetime
+- DB-level index on `(parent_doctype, parent_name)` for feed lookups
+- DB-level index on `(commenter, commented_on)` for "my comments" view
+
+> Polymorphic by design — one DocType serves all comment surfaces. The `parent_doctype` allow-list lives in the controller, not in a Select field, so adding a new commentable DocType is a one-line code change. Distinct from `Alumni Campaign Comment` (donation-campaign-specific, supports guest comments) and `Alumni Candidate Comment` (election-specific, has its own moderation workflow). When the v3 spec was written those two were modeled separately because they predate this generic table; the generic `Alumni Comment` is for everything else (Story, News, Notice, Post). Migration of the two specialized comment DocTypes to this generic table is a v2 cleanup, not v1.
+
+### Alumni Reaction — polymorphic, UUID autoname (schema for §03 #24)
+- `name` autoname `uuid`
+- `parent_doctype` Data req — same allow-list as `Alumni Comment.parent_doctype` plus `Alumni Comment` itself (reactions on comments allowed)
+- `parent_name` Data req
+- `reactor` Link → Alumni Profile req
+- `kind` Select req: `Like` / `Celebrate` / `Insightful` / `Support` / `Curious`
+- `reacted_on` Datetime auto
+- DB-level **unique** index on `(parent_doctype, parent_name, reactor, kind)` to prevent duplicate same-kind reactions (a user *can* leave a Like AND a Celebrate, but not two Likes)
+- DB-level index on `(parent_doctype, parent_name)` for aggregate counts on render
+
+> Toggle semantics: re-submitting the same `(parent, reactor, kind)` deletes the existing row (un-react), per the API contract in `react()` in `alumni/api.py`.
 
 ---
 
@@ -1624,7 +1681,7 @@ def confirm_email_verification(token: str) -> dict: ...   # NEW v3
 
 ---
 
-## §09 Email templates (28)
+## §09 Email templates (29)
 
 `alumni_invitation`, `alumni_self_registered_pending`, `alumni_email_verification`, `alumni_phone_verification_otp`, `alumni_verification_docs_pending_review`, `alumni_verification_approved`, `alumni_verification_rejected`, `alumni_approved`, `event_booking_confirmed`, `event_reminder_24h`, `job_application_received`, `job_application_status_changed`, `membership_card_issued`, `membership_renewal_reminder`, `donation_receipt`, `guest_donation_receipt`, `mentorship_request_received`, `mentorship_request_accepted`, `mentorship_session_reminder`, `committee_meeting_invite`, `outcome_survey_invitation`, `nomination_received`, `nomination_approved`, `nomination_rejected`, `voting_open_for_eligible_voters`, `vote_confirmation`, `election_results_published`, `new_message_received`, `campaign_comment_published`.
 
@@ -1669,7 +1726,8 @@ alumni/
 │   ├── themes/                   # Default + custom themes
 │   │   ├── heritage/
 │   │   ├── modern/
-│   │   └── bold/
+│   │   ├── bold/
+│   │   └── aurora/               # dark mode, ships in T-091 per ADR-043
 │   ├── reports/                  # Frappe Script Reports for advanced queries
 │   ├── dashboard_chart/          # in-app Chart.js dashboards
 │   ├── gateways/                 # Custom gateway adapters not in frappe/payments

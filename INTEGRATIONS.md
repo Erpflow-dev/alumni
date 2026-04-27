@@ -6,7 +6,13 @@ The Adapter Layer is what makes this app work in both **School-Connected** and *
 
 ---
 
-## Selector
+## §0 Selector contract
+
+The selector decides `_real` vs `_fallback` for each adapter at call time. Three behaviours are non-negotiable:
+
+1. **App-presence is the default discriminator.** For most adapters, `_real` is selected when its target Frappe app is installed (`frappe.get_installed_apps()`); otherwise `_fallback` is used.
+2. **The AI adapter is special.** AI provider selection is **not** driven by app presence — it's driven by `Alumni Settings.ai_provider` (None / OpenAI / Anthropic / Bedrock / Custom HTTP) plus the `ai_enabled` master toggle. The selector special-cases `area == "ai"` *before* the app-presence check.
+3. **Defensive default during install / migrate.** Adapters get called during `bench install-app` and `bench migrate` (storage especially, for fixture import). At that moment `Alumni Settings` does not yet exist. The selector MUST swallow `frappe.DoesNotExistError` and return `"fallback"` — it must never raise. Every `_fallback` is therefore also expected to be safe to call against an empty / pre-Settings site.
 
 ```python
 # alumni/integrations/__init__.py
@@ -14,8 +20,30 @@ from __future__ import annotations
 import frappe
 
 def _mode_for(area: str) -> str:
-    """Return 'real' or 'fallback' for a given integration area."""
-    settings = frappe.get_cached_doc("Alumni Settings")
+    """Return 'real' or 'fallback' for a given integration area.
+
+    Defensive default: if Alumni Settings does not yet exist (during
+    install / migrate / pre-wizard), every adapter falls back to '_fallback'
+    rather than raising — adapters used during install (notably storage)
+    must remain callable.
+    """
+    # Defensive: Settings may not exist during install / migrate
+    try:
+        settings = frappe.get_cached_doc("Alumni Settings")
+    except frappe.DoesNotExistError:
+        return "fallback"
+
+    # AI adapter is special: provider is chosen via Alumni Settings.ai_provider,
+    # NOT via frappe.get_installed_apps(). Returns 'real' iff a provider is
+    # configured AND ai_enabled = 1.
+    if area == "ai":
+        if (
+            getattr(settings, "ai_enabled", 0)
+            and getattr(settings, "ai_provider", None) not in (None, "", "None")
+        ):
+            return "real"
+        return "fallback"
+
     if settings.mode == "standalone":
         # Standalone mode: only events use real (Buzz is always required), rest fallback
         if area == "events":
@@ -35,7 +63,7 @@ def _mode_for(area: str) -> str:
         "communication": "school_communication",
         "messaging":   "raven",       # NEW v3 — optional Raven chat backend; falls back to in-app
         "verification": None,         # NEW v3 — always uses fallback (Frappe core); no real impl
-        "ai":          None,          # NEW v3 — provider chosen via Alumni Settings.ai_provider, not by app presence
+        # 'ai' handled above — not app-presence-driven
     }
     real = requirements.get(area)
     if real is None:
@@ -506,6 +534,7 @@ import os
 FORBIDDEN_PREFIXES = [
     "erpnext", "education", "insights", "lms", "hrms",
     "drive", "mail", "crm", "helpdesk", "buzz", "school_",
+    "raven",  # reserved for future messaging_real backend (per INTEGRATIONS.md §10)
 ]
 
 def _python_files(root: str):
