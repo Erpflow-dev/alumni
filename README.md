@@ -47,6 +47,12 @@ You can add custom themes — see `THEMES.md`. The full component vocabulary, mo
 
 ## Install
 
+> **Note on peer Frappe apps.** `payments` and `buzz` are **peer Frappe apps**, not Python
+> packages. They are fetched with `bench get-app` and installed onto the same bench
+> alongside `alumni`. They are **not** declared in `pyproject.toml` and are **not**
+> installable via `pip`. The same is true of `education` and `erpnext` for
+> School-Connected mode. See [`INTEGRATIONS.md`](./INTEGRATIONS.md) for why.
+
 ```bash
 # Get dependencies
 bench get-app payments
@@ -58,6 +64,16 @@ bench --site yoursite.local install-app alumni
 
 # First-run wizard chooses mode + theme + language
 bench --site yoursite.local browse  # opens /setup-wizard
+```
+
+School-Connected mode requires two additional peer apps:
+
+```bash
+# For School-Connected mode, ALSO install before `alumni`:
+bench get-app erpnext --branch version-16
+bench get-app https://github.com/frappe/education --branch version-16
+bench --site <your-site> install-app erpnext
+bench --site <your-site> install-app education
 ```
 
 The wizard asks:

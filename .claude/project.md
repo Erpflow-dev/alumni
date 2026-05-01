@@ -146,17 +146,33 @@ See `DECISIONS.md` § "v2 cleanup notes" (appended after ADR-054).
 
 ---
 
-## Current branch state (as of 2026-04-29)
+## Current branch state (as of 2026-05-01)
 
-- `main` — baseline import of v3 spec docs (`5321e10`)
-- `spec-hygiene-pre-t001` — 15-issue spec hygiene sweep (`702fa4c` + the commit adding this file). PR open at `https://github.com/Erpflow-dev/alumni/pull/new/spec-hygiene-pre-t001`. Pending squash-merge by repo owner.
-- After merge, fast-forward `main` locally and start T-001.
+- `main` — baseline import of v3 spec docs + spec hygiene + .claude bootstrap (`c3ef797`)
+- `phase-0/t-001-repo-scaffold` — **T-001 scaffold landed locally**. Adds `pyproject.toml`
+  (ruff + pytest + coverage 80% gate), `.pre-commit-config.yaml`, `MANIFEST.in`,
+  `license.txt` (canonical AGPL-3.0), `.github/workflows/ci.yml` (matrix on
+  `alumni_mode` per ADR-021 — standalone + school_connected legs, both run
+  `bench migrate` twice for idempotency, pytest is collect-only until tests land),
+  and the `alumni/` Frappe-app skeleton (`hooks.py`, `modules.txt`, `patches.txt`,
+  `config/`, `public/`, `templates/`, `www/`, `alumni/doctype/`). README Install
+  section now distinguishes peer Frappe apps from Python packages and shows the
+  extra `bench get-app erpnext|education` step for school_connected mode. Pending
+  push + PR.
 
 ---
 
 ## Next up
 
-**T-001 — Repo scaffold** (Phase 0). Once spec-hygiene PR is squash-merged into `main`, branch off and run T-001 per `BUILD_TICKETS.md` lines 13–22. Note: `.claude/project.md` (this file) was originally listed as a step inside T-001 — it's done as part of pre-T-001 prep, so drop that bullet from T-001's scope.
+After T-001 PR merges: **T-002 — Adapter Layer skeleton** (Phase 0). Per
+`BUILD_TICKETS.md` lines 24–36: scaffold all 12 adapters with public surface +
+`_real` + `_fallback` stubs (events real-only; verification fallback-only; ai
+scaffolded with `ai_fallback.py` raising `NotImplementedError("AI not enabled")`,
+real driver work deferred to T-104). Implement the selector in
+`alumni/integrations/__init__.py` with the AI special-case branch and the
+`frappe.DoesNotExistError` defensive default for the pre-Settings install path.
+Test that the selector returns `"fallback"` when `Alumni Settings` doesn't yet
+exist.
 
 ---
 

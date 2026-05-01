@@ -1,0 +1,197 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Lint — fast, no Frappe install needed
+  # -------------------------------------------------------------------------
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install "ruff==0.4.10"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format check
+        run: ruff format --check .
+
+  # -------------------------------------------------------------------------
+  # 2. Tests — matrix on alumni_mode (per ADR-021)
+  # -------------------------------------------------------------------------
+  # Two legs:
+  #   - standalone        — vanilla Frappe v16 + payments + buzz
+  #   - school_connected  — adds education + erpnext (v16 branch)
+  #
+  # Each peer app gets its own install step (per-app failure attribution).
+  # `bench migrate` runs twice in a row for idempotency (per CLAUDE.md DoD).
+  # T-001 has no tests yet, so pytest is collect-only — exit 5 ("no tests
+  # collected") is treated as success on the empty app.
+  test:
+    name: Tests (${{ matrix.alumni_mode }})
+    runs-on: ubuntu-22.04
+    needs: lint
+
+    strategy:
+      fail-fast: false
+      matrix:
+        alumni_mode: [standalone, school_connected]
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: travis
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis-cache:
+        image: redis:7-alpine
+        ports: ["13000:6379"]
+
+      redis-queue:
+        image: redis:7-alpine
+        ports: ["11000:6379"]
+
+    steps:
+      - name: Checkout alumni
+        uses: actions/checkout@v4
+        with:
+          path: apps/alumni
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: yarn
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            mariadb-client \
+            libmariadb-dev \
+            wkhtmltopdf
+
+      - name: Install bench
+        run: pip install frappe-bench
+
+      - name: bench init (Frappe v16)
+        run: |
+          bench init \
+            --skip-redis-config-generation \
+            --skip-assets \
+            --frappe-branch version-16 \
+            --python "$(which python)" \
+            frappe-bench
+
+      # -- Get peer apps (per-app, so a failure points at exactly one app) --
+      - name: get-app payments
+        working-directory: frappe-bench
+        run: bench get-app payments
+
+      - name: get-app buzz
+        working-directory: frappe-bench
+        run: bench get-app https://github.com/BuildWithHussain/buzz
+
+      - name: get-app erpnext (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench get-app erpnext --branch version-16
+
+      - name: get-app education (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench get-app education --branch version-16
+
+      - name: Link alumni app into bench
+        run: |
+          mv apps/alumni frappe-bench/apps/alumni
+
+      - name: Configure bench for CI
+        working-directory: frappe-bench
+        run: |
+          bench set-config -g db_host 127.0.0.1
+          bench set-config -g redis_cache redis://127.0.0.1:13000
+          bench set-config -g redis_queue redis://127.0.0.1:11000
+          bench set-config -g redis_socketio redis://127.0.0.1:11000
+
+      - name: Create test site
+        working-directory: frappe-bench
+        run: |
+          bench new-site \
+            --no-mariadb-socket \
+            --mariadb-root-password travis \
+            --admin-password admin \
+            test_site
+
+      # -- Install peer apps and alumni (one app per step) -----------------
+      - name: install-app payments
+        working-directory: frappe-bench
+        run: bench --site test_site install-app payments
+
+      - name: install-app buzz
+        working-directory: frappe-bench
+        run: bench --site test_site install-app buzz
+
+      - name: install-app erpnext (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench --site test_site install-app erpnext
+
+      - name: install-app education (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench --site test_site install-app education
+
+      - name: install-app alumni
+        working-directory: frappe-bench
+        run: bench --site test_site install-app alumni
+
+      # -- Idempotency check: migrate twice ---------------------------------
+      - name: bench migrate (1st run)
+        working-directory: frappe-bench
+        run: bench --site test_site migrate
+
+      - name: bench migrate (2nd run — idempotency)
+        working-directory: frappe-bench
+        run: bench --site test_site migrate
+
+      # -- Tests --
+      # T-001 ships an empty app; pytest collect-only is the smoke. Exit 5
+      # ("no tests collected") is acceptable until tests start landing.
+      - name: pytest collect-only (smoke)
+        working-directory: frappe-bench
+        run: |
+          source env/bin/activate
+          cd apps/alumni
+          python -m pytest --collect-only -q || [ $? -eq 5 ]
