@@ -4,7 +4,7 @@ authors = [
     { name = "Erpflow", email = "info@erpflow.dev" },
 ]
 description = "Standalone Frappe v16 app for alumni networks (school-connected + standalone modes)"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "AGPL-3.0-only" }
 dynamic = ["version"]
@@ -15,7 +15,6 @@ keywords = ["frappe", "alumni", "school", "education", "saas"]
 classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Operating System :: POSIX :: Linux",
     "Framework :: Frappe",
@@ -37,7 +36,7 @@ name = "alumni"
 
 [tool.ruff]
 line-length = 110
-target-version = "py311"
+target-version = "py312"
 extend-exclude = [
     "frappe-bench",
     "node_modules",

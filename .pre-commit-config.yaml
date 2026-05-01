@@ -28,12 +28,12 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # Python upgrade syntax to py3.11+
+  # Python upgrade syntax to py3.12+
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.16.0
     hooks:
       - id: pyupgrade
-        args: [--py311-plus]
+        args: [--py312-plus]
 
   # Markdown / YAML / JSON / CSS / JS formatting
   # (eslint runs as a project-local script via yarn, not as a pre-commit hook,

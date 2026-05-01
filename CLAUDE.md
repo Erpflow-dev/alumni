@@ -21,7 +21,7 @@ Read `DECISIONS.md` ADRs 031–049 before touching any of these areas.
 ## Stack
 
 - **Frappe v16+ ONLY**. We use v16 features: UUID autoname, data masking, virtual DocTypes, type annotations, scheduler improvements. Code that targets v14/v15 is rejected in review.
-- Python 3.11+
+- Python 3.12+
 - Node 20 LTS, Yarn
 - Vue 3 + Vite + Frappe UI for the logged-in portal
 - Jinja for the public site

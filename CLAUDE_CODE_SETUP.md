@@ -73,7 +73,7 @@ Both this app and the skill package target Frappe v14–v16. We use **v16 only**
   - `frappe.utils.data_masker` for PII fields (phone, email) when masking is required
   - Virtual DocTypes for read-only views over external data
   - The improved scheduler's `cron` events
-- Python: 3.11+
+- Python: 3.12+
 - Node: 20 LTS
 
 ## Skill package
