@@ -22,7 +22,7 @@ app_description = (
     "Supports school-connected (frappe/education + erpnext) and "
     "standalone install modes through the Adapter Layer."
 )
-app_email = "info@alumni.example"
+app_email = "info@erpflow.dev"
 app_license = "agpl-3.0"
 app_logo_url = "/assets/alumni/images/logo.svg"
 

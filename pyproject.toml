@@ -1,7 +1,7 @@
 [project]
 name = "alumni"
 authors = [
-    { name = "Alumni App Contributors", email = "info@alumni.example" },
+    { name = "Erpflow", email = "info@erpflow.dev" },
 ]
 description = "Standalone Frappe v16 app for alumni networks (school-connected + standalone modes)"
 requires-python = ">=3.11"
