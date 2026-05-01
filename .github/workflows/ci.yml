@@ -92,7 +92,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: yarn
+          # cache: yarn — re-enable once a yarn.lock exists at repo root.
+          # Will be added by T-005 (themes scaffolding) or T-068 onwards
+          # (Vue inbox SPA), whichever lands first. Until then setup-node
+          # still runs so `node` is available for bench's asset hooks.
 
       - name: System packages
         run: |
