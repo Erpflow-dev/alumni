@@ -1,0 +1,30 @@
+# Claude Code local state — per-machine, never commit
+.claude/settings.local.json
+.claude/cache/
+.claude/.transcripts/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Frappe / bench
+sites/
+logs/
+*.log
