@@ -1,0 +1,29 @@
+include MANIFEST.in
+include license.txt
+include *.md
+include *.toml
+include *.txt
+include *.yaml
+include *.yml
+recursive-include alumni *.css
+recursive-include alumni *.csv
+recursive-include alumni *.html
+recursive-include alumni *.ico
+recursive-include alumni *.js
+recursive-include alumni *.json
+recursive-include alumni *.md
+recursive-include alumni *.png
+recursive-include alumni *.jpg
+recursive-include alumni *.svg
+recursive-include alumni *.py
+recursive-include alumni *.txt
+recursive-include alumni *.vue
+recursive-include alumni *.yaml
+recursive-include alumni *.yml
+prune frappe-bench
+prune node_modules
+prune .github
+prune .claude
+prune dist
+prune .vite
+prune __pycache__

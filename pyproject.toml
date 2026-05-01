@@ -1,0 +1,110 @@
+[project]
+name = "alumni"
+authors = [
+    { name = "Alumni App Contributors", email = "info@alumni.example" },
+]
+description = "Standalone Frappe v16 app for alumni networks (school-connected + standalone modes)"
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "AGPL-3.0-only" }
+dynamic = ["version"]
+dependencies = [
+    "frappe>=16.0.0",
+]
+keywords = ["frappe", "alumni", "school", "education", "saas"]
+classifiers = [
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+    "Framework :: Frappe",
+]
+
+# Note: `payments` and `buzz` are Frappe apps installed via `bench get-app`,
+# not Python packages. They're peer dependencies — see README "Install".
+
+[build-system]
+requires = ["flit_core>=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "alumni"
+
+# ---------------------------------------------------------------------------
+# Linting
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = [
+    "frappe-bench",
+    "node_modules",
+    ".vite",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "PIE", # flake8-pie
+]
+ignore = [
+    # Frappe whitelisted endpoints commonly use mutable defaults / function calls
+    "B008",
+    # Frappe Document subclasses don't need __init__
+    "B027",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Adapter public surfaces re-export from _real / _fallback dynamically; don't fail on
+# apparent unused imports there.
+"alumni/integrations/*.py" = ["F401"]
+# Test files can use long lines for fixtures / readability
+"tests/**" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---------------------------------------------------------------------------
+# Testing
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests", "alumni/tests"]
+python_files = ["test_*.py"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+]
+markers = [
+    "school_connected: tests that require school_connected mode (education + erpnext present)",
+    "standalone: tests that require standalone mode (vanilla Frappe site)",
+]
+
+[tool.coverage.run]
+source = ["alumni"]
+branch = true
+omit = [
+    "alumni/tests/*",
+    "alumni/patches/*",
+]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

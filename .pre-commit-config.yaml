@@ -1,0 +1,66 @@
+# Pre-commit hooks for the alumni Frappe app.
+# Run on every commit. CI runs the same checks on every PR.
+#
+# Install: `pip install pre-commit && pre-commit install`
+# Update:  `pre-commit autoupdate`
+
+repos:
+  # Generic file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Python lint + format (replaces black, flake8, isort)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # Python upgrade syntax to py3.11+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.16.0
+    hooks:
+      - id: pyupgrade
+        args: [--py311-plus]
+
+  # Markdown / YAML / JSON / CSS / JS formatting
+  # (eslint runs as a project-local script via yarn, not as a pre-commit hook,
+  #  because it needs the alumni/frontend/ Vue project graph to resolve.)
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types_or: [css, javascript, json, markdown, scss, ts, yaml]
+        exclude: |
+          (?x)^(
+              license\.txt|
+              \.github/.*|
+              alumni/translations/.*\.csv
+          )$
+
+  # Cross-app import guard — reuse the CI lint locally so violations surface
+  # before push (per ADR-002 and INTEGRATIONS.md § CI guard). The actual lint
+  # script is added in T-003.
+  - repo: local
+    hooks:
+      - id: no-cross-app-imports
+        name: no cross-app imports outside integrations/
+        entry: python -m alumni.tests.test_no_cross_app_imports
+        language: system
+        types: [python]
+        pass_filenames: false
+        # T-003 lands the implementation; this hook is wired up here so the
+        # contract is visible from day one.
+        stages: [manual]

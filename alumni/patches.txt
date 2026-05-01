@@ -1,0 +1,7 @@
+[pre_model_sync]
+# patches that run before Frappe migrates the schema
+# format: alumni.patches.<version>.<patch_name>
+
+[post_model_sync]
+# patches that run after Frappe migrates the schema
+# format: alumni.patches.<version>.<patch_name>
