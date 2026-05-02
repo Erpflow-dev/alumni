@@ -11,6 +11,21 @@
 _Bullet what shipped. Use commit hashes._
 - **Spec bumped to v3** (final revision Apr 2026) after a feature-parity review against ZaiAlumni, several incumbent alumni products, and InfyVCardsSaas's 14-version history. Added 24 new ADRs (031–054), ~72 new DocTypes (33 → ~105), 55 new build tickets (T-062 → T-116) across 3 new phases (14 Elections, 17 SaaS Infra, 18 vCards/WhatsApp/AI), 3 new adapters (messaging, verification, ai — bringing total to 12), 1 new role (Alumni Board Member), 14 new email templates (29 total), 3 new dashboards, 12 built-in SMS / WhatsApp provider drivers + Custom HTTP, 4th theme (Aurora dark mode), full PWA support, custom domain + per-alumni custom domain auto-provisioning with Let's Encrypt SSL, Memorial Wall, Distinguished Alumni Awards, Perks marketplace + digital member card, Job Referrals, Speaker Bureau, Networking match suggestions, profile completeness scoring, SEO + Open Graph + JSON-LD + QR codes, **per-alumni vCards (2 built-in templates + admin-uploadable registry), WhatsApp click-to-chat + Business catalog sync, AI bio drafting opt-in, Alumni Business Directory, antispam settings, bulk admin ops, recovery codes**, and a new top-level `DESIGN_SYSTEM.md` doc.
 - All 11 root docs updated to v3: SPEC.md, DECISIONS.md, INTEGRATIONS.md, BUILD_TICKETS.md, README.md, CLAUDE.md, CHANGELOG.md, PROJECT_STATE.md, THEMES.md. CLAUDE_CODE_SETUP.md unchanged (still applies).
+- Day 1 of T-001 ended with PR #4 still open at 23ab8b2. CI infrastructure work successful through 5 iterations:
+  - yarn cache lockfile (d833ae1)
+  - Python 3.12 attempt (83bb2ce — wrong floor, kept for breadcrumb)
+  - Python 3.14 floor (615d53c — correct)
+  - SHA pinning all 5 peer apps + Node 24 (f903e52)
+  - --origin upstream remote name fix (0d9935f)
+  - Full-history fetch for SHA reset (23ab8b2)
+
+  CI now installs Frappe v16.16.0 + ERPNext v16.16.0 + Education v16.0.1 + buzz 3d77434b + payments 3cebd942 cleanly through bench new-site, install-app payments/buzz/erpnext/education. Stops at install-app alumni with two distinct errors:
+
+  1. buzz/__init__.py:9 calls toggle_test_mode(True) at import time, which raises AttributeError: flags during bench's command discovery (frappe.local.flags not initialized at that point). Upstream incompatibility between buzz HEAD and frappe v16.16.0.
+
+  2. Alumni app is mv'd into apps/ but not pip install -e'd, so bench install-app alumni fails with "No module named 'alumni'". Workflow design issue inherited from T-001 ticket — the ticket specified the move but not the install step.
+
+  Both deferred to T-001-followup tomorrow with fresh eyes.
 
 ## Blockers
 _What's stuck and who is unstuck-ing it._
@@ -51,6 +66,7 @@ _From SPEC and DECISIONS, plus emergent._
 - **Standalone-mode receivables**: needs to handle multi-currency cleanly. Watching.
 - **Frappe Meet still alpha** — staying on Jitsi via fallback for v1.
 - **bKash / HyperPay / Moyasar** may not be in `frappe/payments` yet — may need to contribute upstream.
+- **T-001 not yet merged.** Upstream buzz/frappe compatibility issue at our pinned SHAs needs investigation before merge. Alumni install pattern in CI workflow needs a `pip install -e` step or equivalent. Estimated 1-2 hours tomorrow morning.
 
 ## Next 3 tickets
 1. T-001 — Repo scaffold
