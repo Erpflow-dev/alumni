@@ -97,7 +97,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Frappe v16 package.json declares engines.node ">=24" since
+          # v16.0.0-rc.1; node 20 fails yarn install at bench init.
+          node-version: "24"
           # cache: yarn — re-enable once a yarn.lock exists at repo root.
           # Will be added by T-005 (themes scaffolding) or T-068 onwards
           # (Vue inbox SPA), whichever lands first. Until then setup-node
@@ -114,33 +116,55 @@ jobs:
       - name: Install bench
         run: pip install frappe-bench
 
-      - name: bench init (Frappe v16)
+      # All five apps below are pinned to fixed refs (tags or SHAs) to defend
+      # against upstream HEAD instability. The 16.17.x release-storm
+      # (2026-04-28 → 05-01: three emergency releases in 4 days, 16.17.0 also
+      # raising the Python floor + tightening package.json) was the trigger
+      # for this pinning. Re-evaluate quarterly or when a new v16 feature
+      # is needed; bump deliberately and verify CI before merge.
+      - name: bench init (Frappe v16.16.0 — pinned)
         run: |
           bench init \
             --skip-redis-config-generation \
             --skip-assets \
-            --frappe-branch version-16 \
+            --frappe-branch v16.16.0 \
             --python "$(which python)" \
             frappe-bench
 
       # -- Get peer apps (per-app, so a failure points at exactly one app) --
-      - name: get-app payments
+      - name: get-app payments (pinned to 3cebd942 — 2026-03-13)
         working-directory: frappe-bench
-        run: bench get-app payments
+        # Pin pattern: see the comment block above the buzz step below
+        # for why we use git reset --hard rather than a pre-clone install.
+        run: |
+          bench get-app payments
+          git -C apps/payments fetch --depth 1 origin 3cebd942
+          git -C apps/payments reset --hard 3cebd942
 
-      - name: get-app buzz
+      # buzz and payments have no release tags. We let bench get-app run
+      # its install pipeline against the default branch (which today equals
+      # the pin SHA), then `git reset --hard` to lock the working tree.
+      # Tradeoff: if the SHAs later drift away from HEAD, dependencies
+      # resolved during bench get-app will be from HEAD before the reset,
+      # not the pinned tree. Acceptable today since both apps are small
+      # Frappe apps installed in editable mode pointing at the working tree.
+      # Switch to a pre-clone + file:/// install if a drift bug surfaces.
+      - name: get-app buzz (pinned to 3d77434b — 2026-04-20)
         working-directory: frappe-bench
-        run: bench get-app https://github.com/BuildWithHussain/buzz
+        run: |
+          bench get-app https://github.com/BuildWithHussain/buzz
+          git -C apps/buzz fetch --depth 1 origin 3d77434b
+          git -C apps/buzz reset --hard 3d77434b
 
-      - name: get-app erpnext (school_connected only)
+      - name: get-app erpnext v16.16.0 (school_connected only)
         if: matrix.alumni_mode == 'school_connected'
         working-directory: frappe-bench
-        run: bench get-app erpnext --branch version-16
+        run: bench get-app erpnext --branch v16.16.0
 
-      - name: get-app education (school_connected only)
+      - name: get-app education v16.0.1 (school_connected only)
         if: matrix.alumni_mode == 'school_connected'
         working-directory: frappe-bench
-        run: bench get-app education --branch version-16
+        run: bench get-app education --branch v16.0.1
 
       - name: Link alumni app into bench
         run: |

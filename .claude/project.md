@@ -10,8 +10,8 @@
 ## Versions (pin everything)
 
 - **Frappe v16+ ONLY.** Never generate code targeting v14 or v15. Use type annotations on every controller method, `autoname: "uuid"` for opaque IDs (audit, polymorphic, votes), `frappe.utils.data_masker` for PII, virtual DocTypes for read-only views over external data, the improved scheduler with proper `cron` events.
-- Python 3.12+
-- Node 20 LTS, Yarn
+- Python 3.14 (frappe v16 pins `requires-python = ">=3.14,<3.15"`)
+- Node 24 LTS, Yarn (frappe v16 `package.json` pins `engines.node = ">=24"`)
 - Vue 3 + Vite + Frappe UI (logged-in SPA)
 - Jinja (public site)
 - Chart.js (analytics — no Insights dependency)
