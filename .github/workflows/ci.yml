@@ -138,12 +138,14 @@ jobs:
         # for why we use git reset --hard rather than a pre-clone install.
         run: |
           bench get-app payments
-          git -C apps/payments fetch --depth 1 origin 3cebd942
+          git -C apps/payments fetch --depth 1 upstream 3cebd942
           git -C apps/payments reset --hard 3cebd942
 
       # buzz and payments have no release tags. We let bench get-app run
       # its install pipeline against the default branch (which today equals
       # the pin SHA), then `git reset --hard` to lock the working tree.
+      # Note: bench clones with `--origin upstream`, so fetch uses `upstream`
+      # rather than `origin` as the remote name.
       # Tradeoff: if the SHAs later drift away from HEAD, dependencies
       # resolved during bench get-app will be from HEAD before the reset,
       # not the pinned tree. Acceptable today since both apps are small
@@ -153,7 +155,7 @@ jobs:
         working-directory: frappe-bench
         run: |
           bench get-app https://github.com/BuildWithHussain/buzz
-          git -C apps/buzz fetch --depth 1 origin 3d77434b
+          git -C apps/buzz fetch --depth 1 upstream 3d77434b
           git -C apps/buzz reset --hard 3d77434b
 
       - name: get-app erpnext v16.16.0 (school_connected only)
