@@ -138,24 +138,29 @@ jobs:
         # for why we use git reset --hard rather than a pre-clone install.
         run: |
           bench get-app payments
-          git -C apps/payments fetch --depth 1 upstream 3cebd942
+          git -C apps/payments fetch upstream
           git -C apps/payments reset --hard 3cebd942
 
       # buzz and payments have no release tags. We let bench get-app run
       # its install pipeline against the default branch (which today equals
-      # the pin SHA), then `git reset --hard` to lock the working tree.
-      # Note: bench clones with `--origin upstream`, so fetch uses `upstream`
-      # rather than `origin` as the remote name.
+      # the pin SHA), then `git fetch upstream` (full history) and
+      # `git reset --hard <sha>` to lock the working tree. Note: bench
+      # clones with `--origin upstream`, so fetch uses `upstream` rather
+      # than `origin` as the remote name. We don't constrain fetch depth
+      # because GitHub smart-HTTP doesn't advertise arbitrary SHAs as
+      # fetchable refs, so `--depth=N` + `<sha>` doesn't work.
       # Tradeoff: if the SHAs later drift away from HEAD, dependencies
       # resolved during bench get-app will be from HEAD before the reset,
       # not the pinned tree. Acceptable today since both apps are small
       # Frappe apps installed in editable mode pointing at the working tree.
-      # Switch to a pre-clone + file:/// install if a drift bug surfaces.
+      # Switch to a pre-clone + file:/// install if a real drift-resolution
+      # bug surfaces (i.e., not a fetch-syntax issue like the one this
+      # comment was rewritten in response to).
       - name: get-app buzz (pinned to 3d77434b — 2026-04-20)
         working-directory: frappe-bench
         run: |
           bench get-app https://github.com/BuildWithHussain/buzz
-          git -C apps/buzz fetch --depth 1 upstream 3d77434b
+          git -C apps/buzz fetch upstream
           git -C apps/buzz reset --hard 3d77434b
 
       - name: get-app erpnext v16.16.0 (school_connected only)
