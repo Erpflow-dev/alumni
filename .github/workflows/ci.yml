@@ -138,17 +138,23 @@ jobs:
         # for why we use git reset --hard rather than a pre-clone install.
         run: |
           bench get-app payments
-          git -C apps/payments fetch upstream
+          git -C apps/payments fetch --unshallow upstream
           git -C apps/payments reset --hard 3cebd942
 
       # buzz and payments have no release tags. We let bench get-app run
       # its install pipeline against the default branch (which today equals
-      # the pin SHA), then `git fetch upstream` (full history) and
-      # `git reset --hard <sha>` to lock the working tree. Note: bench
-      # clones with `--origin upstream`, so fetch uses `upstream` rather
-      # than `origin` as the remote name. We don't constrain fetch depth
-      # because GitHub smart-HTTP doesn't advertise arbitrary SHAs as
-      # fetchable refs, so `--depth=N` + `<sha>` doesn't work.
+      # the pin SHA — though for far-back pins it doesn't), then
+      # `git fetch --unshallow upstream` to deepen the shallow `--depth 1`
+      # clone to full history, and `git reset --hard <sha>` to lock the
+      # working tree. Note: bench clones with `--origin upstream`, so
+      # fetch uses `upstream` rather than `origin` as the remote name.
+      # We use `--unshallow` rather than `--depth=N` to avoid hardcoding
+      # a number that silently breaks once a future pin is older than N
+      # commits from HEAD (the bug that caught us at 26e8c20 — plain
+      # `git fetch upstream` doesn't deepen a shallow clone). Both repos
+      # are small (<1000 commits each); full fetch is ~1-2 seconds. We
+      # don't try `--depth=1 <sha>` because GitHub smart-HTTP doesn't
+      # advertise arbitrary SHAs as fetchable refs.
       # Tradeoff: if the SHAs later drift away from HEAD, dependencies
       # resolved during bench get-app will be from HEAD before the reset,
       # not the pinned tree. Acceptable today since both apps are small
@@ -160,7 +166,7 @@ jobs:
         working-directory: frappe-bench
         run: |
           bench get-app https://github.com/BuildWithHussain/buzz
-          git -C apps/buzz fetch upstream
+          git -C apps/buzz fetch --unshallow upstream
           git -C apps/buzz reset --hard 5118a99d
 
       - name: get-app erpnext v16.16.0 (school_connected only)
