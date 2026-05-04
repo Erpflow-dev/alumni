@@ -27,6 +27,12 @@ _Bullet what shipped. Use commit hashes._
 
   Both deferred to T-001-followup tomorrow with fresh eyes.
 
+  Day 2 (continued): both T-001 issues from yesterday's stop fixed in 26e8c20:
+  - buzz pin moved to 5118a99d (pre-toggle_test_mode refactor)
+  - pip install -e apps/alumni added after the mv step
+
+  CI on 26e8c20 surfaced one new layer-7 issue: git fetch upstream on a shallow clone doesn't deepen history far enough to reach a SHA outside the initial --depth 1 pack. Failed at the buzz reset step on both legs. The fix from yesterday (drop --depth flag entirely) was correct for current-HEAD pins like 3d77434b but insufficient for far-back pins like 5118a99d (3 months upstream of HEAD).
+
 ## Blockers
 _What's stuck and who is unstuck-ing it._
 - (none)
@@ -66,7 +72,7 @@ _From SPEC and DECISIONS, plus emergent._
 - **Standalone-mode receivables**: needs to handle multi-currency cleanly. Watching.
 - **Frappe Meet still alpha** — staying on Jitsi via fallback for v1.
 - **bKash / HyperPay / Moyasar** may not be in `frappe/payments` yet — may need to contribute upstream.
-- **T-001 not yet merged.** Upstream buzz/frappe compatibility issue at our pinned SHAs needs investigation before merge. Alumni install pattern in CI workflow needs a `pip install -e` step or equivalent. Estimated 1-2 hours tomorrow morning.
+- **T-001 not yet merged.** Upstream buzz/frappe compatibility issue at our pinned SHAs needs investigation before merge. Alumni install pattern in CI workflow needs a `pip install -e` step or equivalent. Estimated 30-60 minutes tomorrow morning.
 
 ## Next 3 tickets
 1. T-001 — Repo scaffold
