@@ -179,17 +179,17 @@ jobs:
         working-directory: frappe-bench
         run: bench get-app education --branch v16.0.1
 
-      - name: Link alumni app into bench
-        run: |
-          mv apps/alumni frappe-bench/apps/alumni
-
-      - name: Install alumni into bench's Python env
+      - name: install alumni app into bench
         working-directory: frappe-bench
-        # `bench install-app` needs alumni importable on bench's venv. The
-        # earlier mv places the source at apps/alumni but doesn't register
-        # it as a Python package. This mirrors what `bench get-app <path>`
-        # does internally for local sources.
-        run: ./env/bin/pip install -e apps/alumni
+        # alumni source was checked out by actions/checkout into the
+        # workflow root; bench get-app from a local path needs it to
+        # already be accessible. Move it into apps/, then have bench
+        # do its full registration (pip install + apps.txt + any other
+        # v16 bookkeeping). This mirrors what `bench get-app <url>` does
+        # in production; using the local-path form here saves the clone.
+        run: |
+          mv ../apps/alumni apps/alumni
+          bench get-app ./apps/alumni
 
       - name: Configure bench for CI
         working-directory: frappe-bench
