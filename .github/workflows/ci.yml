@@ -181,13 +181,15 @@ jobs:
 
       - name: install alumni app into bench
         working-directory: frappe-bench
-        # bench get-app with a local path expects the source to live
-        # OUTSIDE frappe-bench/apps/ and copies it in itself. Pre-creating
-        # apps/alumni via mv made bench prompt [y/N] for overwrite, which
-        # CI's closed stdin can't answer. Point bench at the original
-        # checkout location (../apps/alumni) and let it handle the move
-        # plus pip install + apps.txt registration.
-        run: bench get-app ../apps/alumni
+        # bench get-app runs `git clone <url>` with cwd=<bench_root>/apps/,
+        # so a relative URL resolves from there — not from the step's
+        # working-directory. We learned this when ../apps/alumni from
+        # frappe-bench/ resolved to frappe-bench/apps/../apps/alumni
+        # (= frappe-bench/apps/alumni) which doesn't exist. Pass an
+        # absolute path via $GITHUB_WORKSPACE to sidestep the path-math
+        # entirely. bench then handles the pip install + apps.txt
+        # registration as expected.
+        run: bench get-app $GITHUB_WORKSPACE/apps/alumni
 
       - name: Configure bench for CI
         working-directory: frappe-bench
