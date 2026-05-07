@@ -33,6 +33,10 @@ _Bullet what shipped. Use commit hashes._
 
   CI on 26e8c20 surfaced one new layer-7 issue: git fetch upstream on a shallow clone doesn't deepen history far enough to reach a SHA outside the initial --depth 1 pack. Failed at the buzz reset step on both legs. The fix from yesterday (drop --depth flag entirely) was correct for current-HEAD pins like 3d77434b but insufficient for far-back pins like 5118a99d (3 months upstream of HEAD).
 
+  Day 2 (final): 5 more iterations during the evening session brought CI through buzz unshallow fix (97fc374), buzz pin to 5118a99d (26e8c20), --unshallow for shallow-clone deepening (42b4b1b), bench get-app with mv (995f934), bench get-app from local path (742bab3). Each peeled back one bench-vs-CI interaction.
+
+  Final state at 742bab3: bench get-app ../apps/alumni fails because bench resolves relative paths from frappe-bench/apps/, not from frappe-bench/. Tomorrow's resume task is the path-math fix — either absolute path, or pre-position the source where bench's relative-path resolution expects it.
+
 ## Blockers
 _What's stuck and who is unstuck-ing it._
 - (none)
@@ -72,7 +76,7 @@ _From SPEC and DECISIONS, plus emergent._
 - **Standalone-mode receivables**: needs to handle multi-currency cleanly. Watching.
 - **Frappe Meet still alpha** — staying on Jitsi via fallback for v1.
 - **bKash / HyperPay / Moyasar** may not be in `frappe/payments` yet — may need to contribute upstream.
-- **T-001 not yet merged.** Upstream buzz/frappe compatibility issue at our pinned SHAs needs investigation before merge. Alumni install pattern in CI workflow needs a `pip install -e` step or equivalent. Estimated 30-60 minutes tomorrow morning.
+- **T-001 not yet merged.** Upstream buzz/frappe compatibility issue at our pinned SHAs needs investigation before merge. Alumni install pattern in CI workflow needs a `pip install -e` step or equivalent. Estimated 30 minutes tomorrow morning.
 
 ## Next 3 tickets
 1. T-001 — Repo scaffold
