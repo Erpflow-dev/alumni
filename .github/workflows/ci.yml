@@ -25,7 +25,10 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # Frappe v16.17.0 pins requires-python = ">=3.14,<3.15" (verified
+          # against the version-16 branch). Both lint and test jobs use 3.14
+          # to keep linting in sync with what gets executed.
+          python-version: "3.14"
           cache: pip
 
       - name: Install ruff
@@ -86,13 +89,21 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          # Frappe v16.17.0 pins requires-python = ">=3.14,<3.15" (verified
+          # against the version-16 branch). Both lint and test jobs use 3.14
+          # to keep linting in sync with what gets executed.
+          python-version: "3.14"
           cache: pip
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: yarn
+          # Frappe v16 package.json declares engines.node ">=24" since
+          # v16.0.0-rc.1; node 20 fails yarn install at bench init.
+          node-version: "24"
+          # cache: yarn — re-enable once a yarn.lock exists at repo root.
+          # Will be added by T-005 (themes scaffolding) or T-068 onwards
+          # (Vue inbox SPA), whichever lands first. Until then setup-node
+          # still runs so `node` is available for bench's asset hooks.
 
       - name: System packages
         run: |
@@ -105,37 +116,80 @@ jobs:
       - name: Install bench
         run: pip install frappe-bench
 
-      - name: bench init (Frappe v16)
+      # All five apps below are pinned to fixed refs (tags or SHAs) to defend
+      # against upstream HEAD instability. The 16.17.x release-storm
+      # (2026-04-28 → 05-01: three emergency releases in 4 days, 16.17.0 also
+      # raising the Python floor + tightening package.json) was the trigger
+      # for this pinning. Re-evaluate quarterly or when a new v16 feature
+      # is needed; bump deliberately and verify CI before merge.
+      - name: bench init (Frappe v16.16.0 — pinned)
         run: |
           bench init \
             --skip-redis-config-generation \
             --skip-assets \
-            --frappe-branch version-16 \
+            --frappe-branch v16.16.0 \
             --python "$(which python)" \
             frappe-bench
 
       # -- Get peer apps (per-app, so a failure points at exactly one app) --
-      - name: get-app payments
+      - name: get-app payments (pinned to 3cebd942 — 2026-03-13)
         working-directory: frappe-bench
-        run: bench get-app payments
-
-      - name: get-app buzz
-        working-directory: frappe-bench
-        run: bench get-app https://github.com/BuildWithHussain/buzz
-
-      - name: get-app erpnext (school_connected only)
-        if: matrix.alumni_mode == 'school_connected'
-        working-directory: frappe-bench
-        run: bench get-app erpnext --branch version-16
-
-      - name: get-app education (school_connected only)
-        if: matrix.alumni_mode == 'school_connected'
-        working-directory: frappe-bench
-        run: bench get-app education --branch version-16
-
-      - name: Link alumni app into bench
+        # Pin pattern: see the comment block above the buzz step below
+        # for why we use git reset --hard rather than a pre-clone install.
         run: |
-          mv apps/alumni frappe-bench/apps/alumni
+          bench get-app payments
+          git -C apps/payments fetch --unshallow upstream
+          git -C apps/payments reset --hard 3cebd942
+
+      # buzz and payments have no release tags. We let bench get-app run
+      # its install pipeline against the default branch (which today equals
+      # the pin SHA — though for far-back pins it doesn't), then
+      # `git fetch --unshallow upstream` to deepen the shallow `--depth 1`
+      # clone to full history, and `git reset --hard <sha>` to lock the
+      # working tree. Note: bench clones with `--origin upstream`, so
+      # fetch uses `upstream` rather than `origin` as the remote name.
+      # We use `--unshallow` rather than `--depth=N` to avoid hardcoding
+      # a number that silently breaks once a future pin is older than N
+      # commits from HEAD (the bug that caught us at 26e8c20 — plain
+      # `git fetch upstream` doesn't deepen a shallow clone). Both repos
+      # are small (<1000 commits each); full fetch is ~1-2 seconds. We
+      # don't try `--depth=1 <sha>` because GitHub smart-HTTP doesn't
+      # advertise arbitrary SHAs as fetchable refs.
+      # Tradeoff: if the SHAs later drift away from HEAD, dependencies
+      # resolved during bench get-app will be from HEAD before the reset,
+      # not the pinned tree. Acceptable today since both apps are small
+      # Frappe apps installed in editable mode pointing at the working tree.
+      # Switch to a pre-clone + file:/// install if a real drift-resolution
+      # bug surfaces (i.e., not a fetch-syntax issue like the one this
+      # comment was rewritten in response to).
+      - name: get-app buzz (pinned to 5118a99d — 2026-02-01)
+        working-directory: frappe-bench
+        run: |
+          bench get-app https://github.com/BuildWithHussain/buzz
+          git -C apps/buzz fetch --unshallow upstream
+          git -C apps/buzz reset --hard 5118a99d
+
+      - name: get-app erpnext v16.16.0 (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench get-app erpnext --branch v16.16.0
+
+      - name: get-app education v16.0.1 (school_connected only)
+        if: matrix.alumni_mode == 'school_connected'
+        working-directory: frappe-bench
+        run: bench get-app education --branch v16.0.1
+
+      - name: install alumni app into bench
+        working-directory: frappe-bench
+        # bench get-app runs `git clone <url>` with cwd=<bench_root>/apps/,
+        # so a relative URL resolves from there — not from the step's
+        # working-directory. We learned this when ../apps/alumni from
+        # frappe-bench/ resolved to frappe-bench/apps/../apps/alumni
+        # (= frappe-bench/apps/alumni) which doesn't exist. Pass an
+        # absolute path via $GITHUB_WORKSPACE to sidestep the path-math
+        # entirely. bench then handles the pip install + apps.txt
+        # registration as expected.
+        run: bench get-app $GITHUB_WORKSPACE/apps/alumni
 
       - name: Configure bench for CI
         working-directory: frappe-bench
