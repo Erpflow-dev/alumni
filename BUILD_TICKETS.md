@@ -14,7 +14,7 @@ Tickets in dependency order. Each is sized for one Claude Code session (1–6 ho
 **Outcome:** A Frappe v16 app installable with `bench install-app alumni` on a vanilla site.
 **Steps:**
 - `bench new-app alumni` with AGPL-3.0 license
-- Add `pyproject.toml` deps: `frappe>=16.0.0`, `payments`, `buzz` (peer-dep noted in README)
+- Leave `pyproject.toml` `dependencies = []` — frappe, payments, and buzz are peer Frappe apps installed by bench, not pip deps (re-declaring frappe trips uv's transitive URL-dep refusal on frappe's pypika/gunicorn git pins; following buzz/payments/ERPNext/Education convention). Document peer-app fetch in README.
 - Drop the 11 root docs: `README.md`, `CLAUDE.md`, `DECISIONS.md`, `SPEC.md`, `INTEGRATIONS.md`, `THEMES.md`, `BUILD_TICKETS.md`, `PROJECT_STATE.md`, `CLAUDE_CODE_SETUP.md`, `CHANGELOG.md`, `license.txt`
 - CI: GitHub Actions running `ruff`, `pytest`, `bench migrate` on a vanilla Frappe v16 site with `payments` and `buzz` installed
 - pre-commit: ruff + eslint + prettier + pyupgrade
